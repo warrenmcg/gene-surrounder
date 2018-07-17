@@ -53,6 +53,106 @@ calcGeneTStats <- function(expr, classLabels, numResamples = 1000){
   return(geneTStats)	
 }
 
+#' Calculate sleuth observed and resampled statistics
+#'
+#' This method takes a \code{sleuth} object and calculates
+#' observed as well as resampled statistics.
+#'
+#' @param obj the sleuth object
+#' @param numResamples the number of times the samples should be resampled.
+#'   Note that this method only uses unique resamplings, so if the specified
+#'   number of resamplings is equal to or more than the total unique combinations,
+#'   this method will calculate statistics for all unique resamplings.
+#' @param numCores the number of cores to use for parallel computation of the resampled stats
+#' @param testType either "lrt" or "wt" to indicate which test, Likelihood Ratio Test or
+#'   Wald Test, to use to calculate statistics
+#' @param whichModel if "lrt" is the test type, this the alternative model; if "wt" is
+#'   the test type, this is the model to use.
+#' @param whichTest if "lrt", this is the test in the format of "[null model]:[alternative model]";
+#'   if "wt", this is the same as whichBeta, the actual column in the design matrix to test
+#' @param whichBeta this is required for both test types to indicate which column of the design
+#'   matrix to permute. For "wt", this is the same as \code{whichTest}.
+#' @param ... these are additional parameters to pass to \code{link{sleuth_fit}}.
+#'
+#' @return a list containing two items:
+#'   \itemize{
+#'     \item{observed}{this is vector of the observed statistics; the likelihood ratio for "lrt", and
+#'        wald statistic for "wt"}
+#'     \item{resampled}{this is a matrix of number-of-features rows and numResamples columns, containing
+#'        the resampled statistics}
+#'   }
+#' @importFrom dplyr bind_rows
+#' @importFrom parallel mclapply
+#' @importFrom sleuth sleuth_fit sleuth_lrt sleuth_wt
+#' @export
+calcGeneSleuthStats <- function(obj, numResamples, numCores, testType = "lrt", whichModel = "full", whichTest = "reduced:full",
+                                whichBeta, ...) {
+  stopifnot(is(obj, "sleuth"))
+  if(testType == "lrt") {
+    models <- strsplit(whichTest, ":", fixed = TRUE)[[1]]
+    null_model <- models[1]
+    if (whichModel != models[2]) {
+      stop("'whichModel' and the alternative model in 'whichTest' do not match")
+    }
+    observedStats <- obj$tests$lrt[[whichTest]]$test_stat
+  } else {
+    if (whichModel != whichBeta) {
+      stop("for 'testType' 'wt', 'whichModel' and 'whichBeta' must match")
+    }
+    observedStats <- obj$tests$wt[[whichModel]][[whichTest]]$wald_stat
+  }
+
+  if (missing(whichBeta)) {
+    stop("'whichBeta' is missing. It must be specified to know which labels to permute")
+  }
+
+  if (missing(numCores)) {
+    numCores <- 1
+  } else if (!is(numCores, "integer") || !is(numCores, "numeric") || numCores <= 0) {
+    stop("numCores is an invalid value")
+  } else {
+    numCores <- as.integer(numCores)
+  }
+
+  design <- obj$fits[[whichModel]]$design_matrix
+  classLabels <- design[, whichBeta]
+  n_ctrl <- sum(classLabels == 0)
+  n_samples <- length(classLabels)
+  max_perms <- choose(n_samples, n_ctrl) - 1
+  if (numResamples == max_perms) {
+    message(paste0("'numResamples', ", numResamples, ", is equal to the maximum number of unique ",
+                   "combinations: ", max_perms, ". Generating all unique combinations."))
+    permMat <- returnResampleMat(classLabels, numResamples, allPerms = TRUE)
+  } else if (numResamples > max_perms) {
+    warning(paste0("'numResamples', ", numResamples, ", is greater than the maximum number of unique ",
+                   "combinations: ", max_perms, ". Generating all unique combinations."))
+    numResamples <- max_perms
+    permMat <- returnResampleMat(classLabels, numResamples, allPerms = TRUE)
+  } else {
+    permMat <- returnResampleMat(classLabels, numResamples, allPerms = FALSE)
+  }
+
+  permStats <- parallel::mclapply(1:numResamples, function(i) {
+    permLabels <- permMat[i, ]
+    perm_design <- design
+    perm_design[, whichBeta] <- permLabels
+    perm_obj <- sleuth::sleuth_fit(obj, formula = perm_design, fit_name = whichModel, ...)
+    if (testType == "lrt") {
+      perm_obj <- sleuth::sleuth_lrt(perm_obj, null_model, whichModel)
+      perm_stats <- perm_obj$tests$lrt[[whichTest]]$test_stat
+    } else {
+      perm_obj <- sleuth::sleuth_wt(perm_obj, whichBeta, whichModel)
+      perm_stats <- perm_obj$tests$wt[[whichModel]][[whichTest]]$wald_stat
+    }
+    perm_stats
+  }, mc.cores = numCores)
+
+  permStats <- dplyr::bind_rows(permStats)
+
+  list(observed = observedStats, resampled = permStats)
+}
+
+
 #' Return Matrix of Unique Resamplings
 #'
 #' This method takes a named vector of class labels, and
