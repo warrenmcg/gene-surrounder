@@ -9,7 +9,9 @@ calcGeneSleuthStats(obj, numResamples = NULL, numCores = 1L,
   whichBeta, ...)
 }
 \arguments{
-\item{obj}{the sleuth object}
+\item{obj}{the sleuth object. It must have 'whichModel' already fit
+using \code{sleuth_fit}, as well as the null model if the testType is
+'lrt'.}
 
 \item{numResamples}{the number of times the samples should be resampled.
 Note that this method only uses unique resamplings, so if this is \code{NULL} or
