@@ -4,16 +4,17 @@
 \alias{calcGeneSleuthStats}
 \title{Calculate sleuth observed and resampled statistics}
 \usage{
-calcGeneSleuthStats(obj, numResamples, numCores, testType = "lrt",
-  whichModel = "full", whichTest = "reduced:full", whichBeta, ...)
+calcGeneSleuthStats(obj, numResamples = NULL, numCores = 1L,
+  testType = "lrt", whichModel = "full", whichTest = "reduced:full",
+  whichBeta, ...)
 }
 \arguments{
 \item{obj}{the sleuth object}
 
 \item{numResamples}{the number of times the samples should be resampled.
-Note that this method only uses unique resamplings, so if the specified
-number of resamplings is equal to or more than the total unique combinations,
-this method will calculate statistics for all unique resamplings.}
+Note that this method only uses unique resamplings, so if this is \code{NULL} or
+if the specified number of resamplings is equal to or more than the total unique
+combinations, this method will calculate statistics for all unique resamplings.}
 
 \item{numCores}{the number of cores to use for parallel computation of the resampled stats}
 

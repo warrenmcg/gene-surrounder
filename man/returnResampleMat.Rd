@@ -4,7 +4,7 @@
 \alias{returnResampleMat}
 \title{Return Matrix of Unique Resamplings}
 \usage{
-returnResampleMat(classLabels, numResamples, allPerms = TRUE)
+returnResampleMat(classLabels, numResamples = NULL, allPerms = TRUE)
 }
 \arguments{
 \item{classLabels}{a named vector with the class labels to be permuted.
@@ -12,7 +12,9 @@ at this time, only two-condition experiments are allowed.}
 
 \item{numResamples}{the number of desired unique resamplings;
 if this value is equal to or greater than the maximum possible
-unique resamplings, all unique resamplings will be provided}
+unique resamplings, all unique resamplings will be provided.
+The default is \code{NULL}, indicating that all combinations should be
+generated.}
 
 \item{allPerms}{if \code{TRUE} (the default), it will override \code{numResamples}
 and generate all possible unique combinations.}

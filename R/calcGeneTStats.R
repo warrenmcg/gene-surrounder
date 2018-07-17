@@ -60,9 +60,9 @@ calcGeneTStats <- function(expr, classLabels, numResamples = 1000){
 #'
 #' @param obj the sleuth object
 #' @param numResamples the number of times the samples should be resampled.
-#'   Note that this method only uses unique resamplings, so if the specified
-#'   number of resamplings is equal to or more than the total unique combinations,
-#'   this method will calculate statistics for all unique resamplings.
+#'   Note that this method only uses unique resamplings, so if this is \code{NULL} or
+#'   if the specified number of resamplings is equal to or more than the total unique
+#'   combinations, this method will calculate statistics for all unique resamplings.
 #' @param numCores the number of cores to use for parallel computation of the resampled stats
 #' @param testType either "lrt" or "wt" to indicate which test, Likelihood Ratio Test or
 #'   Wald Test, to use to calculate statistics
@@ -85,7 +85,7 @@ calcGeneTStats <- function(expr, classLabels, numResamples = 1000){
 #' @importFrom parallel mclapply
 #' @importFrom sleuth sleuth_fit sleuth_lrt sleuth_wt
 #' @export
-calcGeneSleuthStats <- function(obj, numResamples, numCores, testType = "lrt", whichModel = "full", whichTest = "reduced:full",
+calcGeneSleuthStats <- function(obj, numResamples = NULL, numCores = 1L, testType = "lrt", whichModel = "full", whichTest = "reduced:full",
                                 whichBeta, ...) {
   stopifnot(is(obj, "sleuth"))
   if(testType == "lrt") {
@@ -96,8 +96,8 @@ calcGeneSleuthStats <- function(obj, numResamples, numCores, testType = "lrt", w
     }
     observedStats <- obj$tests$lrt[[whichTest]]$test_stat
   } else {
-    if (whichModel != whichBeta) {
-      stop("for 'testType' 'wt', 'whichModel' and 'whichBeta' must match")
+    if (whichTest != whichBeta) {
+      stop("for 'testType' 'wt', 'whichTest' and 'whichBeta' must match")
     }
     observedStats <- obj$tests$wt[[whichModel]][[whichTest]]$wald_stat
   }
@@ -106,9 +106,7 @@ calcGeneSleuthStats <- function(obj, numResamples, numCores, testType = "lrt", w
     stop("'whichBeta' is missing. It must be specified to know which labels to permute")
   }
 
-  if (missing(numCores)) {
-    numCores <- 1
-  } else if (!is(numCores, "integer") || !is(numCores, "numeric") || numCores <= 0) {
+  if ((!is(numCores, "integer") && !is(numCores, "numeric")) || numCores <= 0) {
     stop("numCores is an invalid value")
   } else {
     numCores <- as.integer(numCores)
@@ -119,7 +117,11 @@ calcGeneSleuthStats <- function(obj, numResamples, numCores, testType = "lrt", w
   n_ctrl <- sum(classLabels == 0)
   n_samples <- length(classLabels)
   max_perms <- choose(n_samples, n_ctrl) - 1
-  if (numResamples == max_perms) {
+  if (is.null(numResamples)) {
+    message("'numResamples' was not specified. Generating all unique combinations.")
+    permMat <- returnResampleMat(classLabels, numResamples, allPerms = TRUE)
+    numResamples <- max_perms
+  } else if (numResamples == max_perms) {
     message(paste0("'numResamples', ", numResamples, ", is equal to the maximum number of unique ",
                    "combinations: ", max_perms, ". Generating all unique combinations."))
     permMat <- returnResampleMat(classLabels, numResamples, allPerms = TRUE)
@@ -164,7 +166,9 @@ calcGeneSleuthStats <- function(obj, numResamples, numCores, testType = "lrt", w
 #'   at this time, only two-condition experiments are allowed.
 #' @param numResamples the number of desired unique resamplings;
 #'   if this value is equal to or greater than the maximum possible
-#'   unique resamplings, all unique resamplings will be provided
+#'   unique resamplings, all unique resamplings will be provided.
+#'   The default is \code{NULL}, indicating that all combinations should be
+#'   generated.
 #' @param allPerms if \code{TRUE} (the default), it will override \code{numResamples}
 #'   and generate all possible unique combinations.
 #'
@@ -172,13 +176,17 @@ calcGeneSleuthStats <- function(obj, numResamples, numCores, testType = "lrt", w
 #'   resamplings, and m equal to the length of the class labels.
 #' @importFrom utils combn
 #' @export
-returnResampleMat <- function(classLabels, numResamples, allPerms = TRUE) {
+returnResampleMat <- function(classLabels, numResamples = NULL, allPerms = TRUE) {
   if (length(unique(classLabels)) > 2) {
     stop("This method is only implemented for experiments with two conditions")
   }
 
   if (is.null(names(classLabels))) {
     stop("This method only works if the 'classLabels' vector is named")
+  }
+
+  if (is.null(numResamples) && !allPerms) {
+    stop("If 'allPerms' is FALSE, 'numResamples' must be specified.")
   }
 
   if (is(classLabels, "factor")) {
@@ -196,6 +204,8 @@ returnResampleMat <- function(classLabels, numResamples, allPerms = TRUE) {
   n_samples <- length(classLabels)
 
   max_perms <- choose(n_samples, n_ctrl) - 1
+  if (is.null(numResamples)) numResamples <- max_perms
+
   if (allPerms && numResamples != max_perms) {
     warning(paste0("allPerms is TRUE, but the specified 'numResamples', ", numResamples,
                    ", doesn't match the total possible number of combinations, ",
@@ -206,8 +216,9 @@ returnResampleMat <- function(classLabels, numResamples, allPerms = TRUE) {
                    ". Generating all possible combinations and will return only ", max_perms,
                    " combinations."))
     allPerms <- TRUE
-  } else if (!allPerms && numResamples > 10000) {
-    message(paste0("The specified 'numResamples', ", numResamples, ", is more than 10,000.",
+  } else if ((!allPerms && numResamples > 10000) || (allPerms && max_perms > 10000)) {
+    samples <- ifelse(allPerms, max_perms, numResamples)
+    message(paste0("The specified number of combinations, ", samples, ", is more than 10,000.",
                    " This may take a little bit of time to generate unique permutations.",
                    " Please contact the developers if this is significantly delaying your analysis."))
   }
