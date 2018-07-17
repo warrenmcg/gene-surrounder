@@ -146,8 +146,8 @@ calcGeneSleuthStats <- function(obj, numResamples, numCores, testType = "lrt", w
     }
     perm_stats
   }, mc.cores = numCores)
-
-  permStats <- dplyr::bind_rows(permStats)
+  names(permStats) <- paste0("resample_", 1:numResamples)
+  permStats <- as.matrix(as.data.frame(permStats))
 
   list(observed = observedStats, resampled = permStats)
 }

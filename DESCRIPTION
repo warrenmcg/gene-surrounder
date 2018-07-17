@@ -6,6 +6,8 @@ Description: What the package does (one paragraph).
 Depends:
     R (>= 3.2.1)
 Imports:
+    aggregation,
+    data.table,
     dplyr,
     graphics,
     igraph,
