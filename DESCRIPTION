@@ -16,7 +16,9 @@ Imports:
     parallel,
     pcaPP,
     sleuth,
-    utils
+    stats,
+    utils,
+    whitening
 License: What license is it under?
 LazyData: true
 RoxygenNote: 6.0.1

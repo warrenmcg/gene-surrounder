@@ -115,3 +115,159 @@ transToGenePvals <- function(pvals, mean_obs, t2g, weight_func = identity, numCo
   new_pvals
 }
 
+
+#' Aggregate transcript-level correlations to gene-level
+#'
+#' This method uses the \code{whitening} package to
+#' conduct a canonical correlation analysis between each
+#' pair of genes, using each gene's transcripts as the
+#' set of variables under consideration, and using the shrinkage
+#' estimate from the \code{scca} function within \code{whitening}.
+#' This allows for estimation of a gene-level correlation
+#' by examining the canonical correlations between the two sets
+#' of transcripts.
+#'
+#' @param data a matrix of transcript expression values. The rows
+#'   should be samples and the columns should be transcripts,
+#'   with the column names being the transcript IDs used to map
+#'   to the gene level.
+#' @param t2g a data frame with two columns; the first contains
+#'   the transcript IDs, and should match the names of pvals; the second
+#'   contains the gene IDs. All transcripts should have one
+#'   and only one corresponding gene ID.
+#' @param numCores the number of cores to use for parallel computation
+#'
+#' @return an 'ff' object pointing to a file on disk containing the
+#'   estimated gene-level correlation matrix
+#'
+#' @importFrom ff ff
+#' @importFrom parallel mclapply
+#' @importFrom stats cor
+#' @importFrom whitening scca
+#' @export
+transToGeneCors <- function(data, t2g, numCores = 1L) {
+  # step 1: create hash of gene IDs to transcript IDs
+  stopifnot(is(data, "matrix") && is(data[,1], "numeric"))
+
+  if (nrow(data) > ncol(data)) {
+    stop(paste0("There are more rows than columns. Are you ",
+                "sure that each sample is a row, and each ",
+                "transcript is a column?"))
+  }
+  t2g <- as.data.frame(t2g)
+  filt_t2g <- t2g[which(t2g[,1] %in% colnames(data)), ]
+
+  if (!all(colnames(data) %in% filt_t2g[,1])) {
+    stop(paste0("'data' should have transcript IDs for column names, ",
+                "and at least one transcript ID does not have a entry ",
+                "on the 't2g' data frame. Please make sure every transcript ",
+                "ID has a corresponding gene ID."))
+  }
+
+  gene_hash <- parallel::mclapply(unique(filt_t2g[,2]), function(id) {
+    filt_t2g[which(filt_t2g[,2] == id), 1]
+  }, mc.cores = numCores)
+
+  # step 2: preallocate the gene-level matrix as an ff object
+  ngenes <- length(gene_hash)
+  g_names <- names(gene_hash) <- unique(filt_t2g[,2])
+
+  gene_corMAT <- ff::ff(vmode = 'single',  dim = c(ngenes, ngenes),
+                        dimnames = list(g_names, g_names))
+
+  # step 3A: only calculate the right lower triangle, but place result
+  #   in both expected locations
+  # step 3B: parallelize the calculation of scca on gene-level pairs
+  outer_result <- parallel::mclapply(1:length(gene_hash), function(i) {
+    if (i %% 100 == 0) {
+      message(paste0(i, " genes have been processed"))
+    }
+    inner_res <- lapply(1:i, function(j) {
+        if (i == j) {
+          gene_corMAT[i, j] <- 1
+        } else {
+          gene1_cols <- colnames(data) %in% gene_hash[[i]]
+          gene2_cols <- colnames(data) %in% gene_hash[[j]]
+          gene1_data <- data[, gene1_cols, drop = F]
+          gene2_data <- data[, gene2_cols, drop = F]
+          if(ncol(gene1_data) == 1 && ncol(gene2_data) == 1) {
+            g_cor <- cor(gene1_data, gene2_data)[1,1]
+          } else {
+            scca_res <- whitening::scca(gene1_data, gene2_data, verbose = FALSE)
+            g_cor <- scca_res$lambda[1]
+          }
+          gene_corMAT[i, j] <- g_cor
+          gene_corMAT[j, i] <- g_cor
+        }
+    })
+  }, mc.cores = numCores)
+
+  failed_bool <- sapply(inner_res, function(x) is(x, "try-error"))
+  if (any(failed_bool)) {
+    message("Something went wrong. Deleting gene correlation matrix...")
+    rm(gene_corMAT)
+    suppressMessages(gc())
+    return(inner_res)
+  }
+  suppressMessages(gc())
+
+  return(gene_corMAT)
+}
+
+
+#' Calculate large gene expression correlation matrix in parallel
+#'
+#' This methods uses the ff package to calculate a large
+#' correlation matrix.
+#'
+#' @param data a N x M matrix or data.frame, with N columns corresponding to
+#'   each gene observed, and M rows corresponding to the samples
+#'   in the experiment.
+#' @param size the number of elements per block to split the data. The
+#'   default is 2000, which results in decent performance for typical
+#'   usage (order of 10-20K features). If the number of features is
+#'   not evenly divisible by the size parameter, a remainder block is used.
+#' @param numCores the number of cores to use for parallel calculations
+#'
+#' @return an 'ff' object pointing to a file on disk containing the
+#'   gene correlation matrix
+#' @importFrom ff ff
+#' @importFrom parallel mclapply
+#' @importFrom stats cor
+#' @export
+calcGeneCor <- function(data, size = 2000, numCores = 1L) {
+  ## this code is adapted from two sources:
+  ## 1) bigcor.R: http://www.dr-spiess.de/scripts/bigcor.R
+  ## 2) bigcorPar.R: https://gist.github.com/bobthecat/5024079
+  data <- as.data.frame(data)
+  t_names <- colnames(data)
+  NCOL <- ncol(data)
+  rest <- NCOL %% size
+  large <- NCOL - rest
+  nblocks <- NCOL %/% size
+
+  group <- rep(1:nblocks, each = size)
+  if (rest > 0) group <- c(group, rep(nblocks + 1, rest))
+
+  SPLIT <- split(1:NCOL, group)
+
+  COMBS <- expand.grid(1:length(SPLIT), 1:length(SPLIT))
+  COMBS <- t(apply(COMBS, 1, sort))
+  COMBS <- unique(COMBS)
+
+  corMAT <- ff::ff(vmode = 'single', dim = c(NCOL, NCOL),
+                   dimnames = list(t_names, t_names))
+
+
+  result <- parallel::mclapply(1:nrow(COMBS), function(i) {
+    comb <- COMBS[i, ]
+    g1 <- SPLIT[[comb[1]]]
+    g2 <- SPLIT[[comb[2]]]
+    COR <- stats::cor(data[, g1], data[, g2])
+    corMAT[g1, g2] <- COR
+    corMAT[g2, g1] <- t(COR)
+  }, mc.cores = numCores)
+  suppressMessages(gc())
+
+  return(corMAT)
+}
