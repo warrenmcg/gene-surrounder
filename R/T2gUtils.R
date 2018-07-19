@@ -127,10 +127,9 @@ transToGenePvals <- function(pvals, mean_obs, t2g, weight_func = identity, numCo
 #' by examining the canonical correlations between the two sets
 #' of transcripts.
 #'
-#' @param data a matrix of transcript expression values. The rows
-#'   should be samples and the columns should be transcripts,
-#'   with the column names being the transcript IDs used to map
-#'   to the gene level.
+#' @param exprMatrix a matrix of transcript-level expression values. The rows
+#'   should be transcripts and the columns should be samples, with the row
+#'   names being the transcript IDs used to map to the gene level.
 #' @param t2g a data frame with two columns; the first contains
 #'   the transcript IDs, and should match the names of pvals; the second
 #'   contains the gene IDs. All transcripts should have one
@@ -149,11 +148,14 @@ transToGeneCors <- function(data, t2g, numCores = 1L) {
   # step 1: create hash of gene IDs to transcript IDs
   stopifnot(is(data, "matrix") && is(data[,1], "numeric"))
 
-  if (nrow(data) > ncol(data)) {
-    stop(paste0("There are more rows than columns. Are you ",
-                "sure that each sample is a row, and each ",
-                "transcript is a column?"))
+  if (ncol(data) > nrow(data)) {
+    stop(paste0("There are more columns than rows. Are you ",
+                "sure that each sample is a column, and each ",
+                "transcript is a row?"))
+  } else {
+    data <- t(data)
   }
+
   t2g <- as.data.frame(t2g)
   filt_t2g <- t2g[which(t2g[,1] %in% colnames(data)), ]
 

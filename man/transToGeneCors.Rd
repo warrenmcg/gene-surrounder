@@ -7,17 +7,16 @@
 transToGeneCors(data, t2g, numCores = 1L)
 }
 \arguments{
-\item{data}{a matrix of transcript expression values. The rows
-should be samples and the columns should be transcripts,
-with the column names being the transcript IDs used to map
-to the gene level.}
-
 \item{t2g}{a data frame with two columns; the first contains
 the transcript IDs, and should match the names of pvals; the second
 contains the gene IDs. All transcripts should have one
 and only one corresponding gene ID.}
 
 \item{numCores}{the number of cores to use for parallel computation}
+
+\item{exprMatrix}{a matrix of transcript-level expression values. The rows
+should be transcripts and the columns should be samples, with the row
+names being the transcript IDs used to map to the gene level.}
 }
 \value{
 an 'ff' object pointing to a file on disk containing the
