@@ -180,10 +180,14 @@ transToGeneCors <- function(data, t2g, numCores = 1L) {
   # step 3A: only calculate the right lower triangle, but place result
   #   in both expected locations
   # step 3B: parallelize the calculation of scca on gene-level pairs
+  start <- Sys.time()
   outer_result <- parallel::mclapply(1:length(gene_hash), function(i) {
-    if (i %% 100 == 0) {
-      message(paste0(i, " genes have been processed"))
+    if (i %% 1000 == 0) {
+      timestamp <- Sys.time() - start
+      time_msg <- format(timestamp, digits = 3)
+      message(paste(i, "genes have been processed. Time elapsed:", time_msg))
     }
+
     inner_res <- lapply(1:i, function(j) {
         if (i == j) {
           gene_corMAT[i, j] <- 1
