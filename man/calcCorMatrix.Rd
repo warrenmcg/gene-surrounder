@@ -2,22 +2,39 @@
 % Please edit documentation in R/calcCorMatrix.R
 \name{calcCorMatrix}
 \alias{calcCorMatrix}
-\title{Pre-processing Step}
+\title{Calculate large gene expression correlation matrix in parallel}
 \usage{
-calcCorMatrix(exprMatrix, exprName, corMethod = "pearson",
-  useMethod = "everything")
+calcCorMatrix(exprMatrix, exprName, size = 2000, numCores = 1L,
+  corMethod = "pearson", useMethod = "everything")
 }
 \arguments{
-\item{exprMatrix}{A matrix (genes by samples) of expression values.}
+\item{exprMatrix}{a N x M matrix or data.frame, with N columns corresponding to
+each samples in the experiment observed, and M rows corresponding to the
+the genes observed.}
 
 \item{exprName}{A string with the name of the expression matrix.}
 
-\item{corMethod}{A string with the correlation method to use.}
+\item{size}{the number of elements per block to split the data. The
+default is 2000, which results in decent performance for typical
+usage (order of 10-20K features). If the number of features is
+not evenly divisible by the size parameter, a remainder block is used.}
 
-\item{useMethod}{A string to specify which values to use.
-See "use" option under ?cor}
+\item{numCores}{the number of cores to use for parallel calculations}
+
+\item{corMethod}{string with the method of calculating correlation. Supported
+methods are 'pearson' (default), 'spearman', or 'kendall'. See
+?stats::cor for more details.}
+
+\item{useMethod}{string with what observations should be used. Supported
+options are "everything" (default), "all.obs", "complete.obs",
+"na.or.complete", or "pairwise.complete.obs". See ?stats::cor for more
+details on what each option entails.}
+}
+\value{
+an 'ff' object pointing to a file on disk containing the
+  gene correlation matrix
 }
 \description{
-Before applying GeneSurrounder, the correlation
-between the expression of the genes should be calculated
+This method uses the ff package to calculate a large
+correlation matrix in parallel.
 }

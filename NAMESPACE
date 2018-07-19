@@ -2,7 +2,6 @@
 
 export(calcAllPairsDistances)
 export(calcCorMatrix)
-export(calcGeneCor)
 export(calcGeneSleuthStats)
 export(calcGeneTStats)
 export(geneNIDG)
