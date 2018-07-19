@@ -4,12 +4,13 @@
 \alias{calcGeneCor}
 \title{Calculate large gene expression correlation matrix in parallel}
 \usage{
-calcGeneCor(data, size = 2000, numCores = 1L)
+calcGeneCor(data, size = 2000, numCores = 1L, corMethod = "pearson",
+  useMethod = "everything")
 }
 \arguments{
 \item{data}{a N x M matrix or data.frame, with N columns corresponding to
-each gene observed, and M rows corresponding to the samples
-in the experiment.}
+each samples in the experiment observed, and M rows corresponding to the
+the genes observed.}
 
 \item{size}{the number of elements per block to split the data. The
 default is 2000, which results in decent performance for typical
@@ -17,12 +18,21 @@ usage (order of 10-20K features). If the number of features is
 not evenly divisible by the size parameter, a remainder block is used.}
 
 \item{numCores}{the number of cores to use for parallel calculations}
+
+\item{corMethod}{the method of calculating correlation. Supported
+methods are 'pearson' (default), 'spearman', or 'kendall'. See
+?stats::cor for more details.}
+
+\item{useMethod}{what observations should be used? Supported options
+are "everything" (default), "all.obs", "complete.obs", "na.or.complete",
+or "pairwise.complete.obs". See ?stats::cor for more details on what
+each option entails.}
 }
 \value{
 an 'ff' object pointing to a file on disk containing the
   gene correlation matrix
 }
 \description{
-This methods uses the ff package to calculate a large
-correlation matrix.
+This method uses the ff package to calculate a large
+correlation matrix in parallel.
 }
