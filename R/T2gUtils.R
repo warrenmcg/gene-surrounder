@@ -177,6 +177,17 @@ transToGeneCors <- function(data, t2g, numCores = 1L) {
   gene_corMAT <- ff::ff(vmode = 'single',  dim = c(ngenes, ngenes),
                         dimnames = list(g_names, g_names))
 
+  ## we want to balance the workload of each worker in the parallel processing
+  ## otherwise, core 1 will get 1 calculation; core 2 will get 2 and so on
+  ## leading to seemingly fast beginning and really slow end
+  ## this is adapted from https://doi.org/10.1186/s12859-014-0351-9
+  ## a = sum(i = 1:k){i / k} = k * (k+1) / (2*k) = (k+1) / 2
+  ## a = average number of entries needed to be calculated per row
+  a <- (ngenes + 1) / 2
+  ## this value will be needed below
+  ## every worker will either get floor(a) or ceiling(a) calculations to do
+  f <- floor(a)
+
   # step 3A: only calculate the right lower triangle, but place result
   #   in both expected locations
   # step 3B: parallelize the calculation of scca on gene-level pairs
@@ -188,7 +199,22 @@ transToGeneCors <- function(data, t2g, numCores = 1L) {
       message(paste(i, "genes have been processed. Time elapsed:", time_msg))
     }
 
-    inner_res <- lapply(1:i, function(j) {
+    if (i == a) {
+      ## if the number of genes is odd, then a is an integer
+      ## and the columns 1 through i can be done when
+      ## you reach the middle row
+      j_vals <- c(1:i)
+    } else if (i < a) {
+      ## if the row number is less than a,
+      ## you do 1 through i, but then (f+i) to the end
+      j_vals <- c(1:i, (f+i):ngenes)
+    } else if (i > a) {
+      ## if the row number is greater than a,
+      ## skip the first (i - f) values
+      j_vals <- c((i - f + 1):i)
+    }
+
+    inner_res <- lapply(j_vals, function(j) {
         if (i == j) {
           gene_corMAT[i, j] <- 1
         } else {
