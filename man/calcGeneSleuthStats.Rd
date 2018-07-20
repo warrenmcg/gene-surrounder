@@ -4,24 +4,17 @@
 \alias{calcGeneSleuthStats}
 \title{Calculate sleuth observed and resampled statistics}
 \usage{
-calcGeneSleuthStats(obj, numResamples = NULL, numCores = 1L,
-  testType = "lrt", whichModel = "full", whichTest = "reduced:full",
-  whichBeta, ...)
+calcGeneSleuthStats(obj, whichBeta, whichModel = "full",
+  whichTest = "reduced:full", testType = "lrt", numResamples = NULL,
+  allPerms = TRUE, numCores = 1L, ...)
 }
 \arguments{
 \item{obj}{the sleuth object. It must have 'whichModel' already fit
 using \code{sleuth_fit}, as well as the null model if the testType is
 'lrt'.}
 
-\item{numResamples}{the number of times the samples should be resampled.
-Note that this method only uses unique resamplings, so if this is \code{NULL} or
-if the specified number of resamplings is equal to or more than the total unique
-combinations, this method will calculate statistics for all unique resamplings.}
-
-\item{numCores}{the number of cores to use for parallel computation of the resampled stats}
-
-\item{testType}{either "lrt" or "wt" to indicate which test, Likelihood Ratio Test or
-Wald Test, to use to calculate statistics}
+\item{whichBeta}{this is required for both test types to indicate which column of the design
+matrix to permute. For "wt", this is the same as \code{whichTest}.}
 
 \item{whichModel}{if "lrt" is the test type, this the alternative model; if "wt" is
 the test type, this is the model to use.}
@@ -29,8 +22,18 @@ the test type, this is the model to use.}
 \item{whichTest}{if "lrt", this is the test in the format of "[null model]:[alternative model]";
 if "wt", this is the same as whichBeta, the actual column in the design matrix to test}
 
-\item{whichBeta}{this is required for both test types to indicate which column of the design
-matrix to permute. For "wt", this is the same as \code{whichTest}.}
+\item{testType}{either "lrt" or "wt" to indicate which test, Likelihood Ratio Test or
+Wald Test, to use to calculate statistics}
+
+\item{numResamples}{the number of times the samples should be resampled.
+Note that this method only uses unique resamplings, so if this is \code{NULL} or
+if the specified number of resamplings is equal to or more than the total unique
+combinations, this method will calculate statistics for all unique resamplings.}
+
+\item{allPerms}{boolean for whether all permutations should be
+generated}
+
+\item{numCores}{the number of cores to use for parallel computation of the resampled stats}
 
 \item{...}{these are additional parameters to pass to \code{link{sleuth_fit}}.}
 }

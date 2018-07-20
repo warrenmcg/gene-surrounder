@@ -8,11 +8,11 @@ Depends:
 Imports:
     aggregation,
     data.table,
-    dplyr,
     graphics,
     igraph,
     KEGGgraph,
     limma,
+    methods,
     parallel,
     pcaPP,
     sleuth,
