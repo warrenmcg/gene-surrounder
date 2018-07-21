@@ -4,14 +4,32 @@
 \alias{calcGeneTStats}
 \title{Pre-processing Step}
 \usage{
-calcGeneTStats(expr, classLabels, numResamples = 1000)
+calcGeneTStats(expr, classLabels, numResamples = NULL, allPerms = TRUE,
+  numCores = 1L)
 }
 \arguments{
 \item{expr}{A matrix (genes by samples) of expression values.}
 
 \item{classLabels}{A factor with levels corresponding to class labels.}
 
-\item{numResamples}{defaults to 1000. The number of resamples when calculating resampled differential expression.}
+\item{numResamples}{the number of times the samples should be resampled.
+Note that this method only uses unique resamplings, so if this is \code{NULL} or
+if the specified number of resamplings is equal to or more than the total unique
+combinations, this method will calculate statistics for all unique resamplings.}
+
+\item{allPerms}{boolean for whether all permutations should be
+generated}
+
+\item{numCores}{the number of cores to use for parallel computation of the
+resampled stats}
+}
+\value{
+a list containing two items:
+  \itemize{
+    \item{observed}{this is vector of the observed statistics}
+    \item{resampled}{this is a matrix of numResamples rows and
+       number-of-features columns, containing the resampled statistics}
+  }
 }
 \description{
 Before applying GeneSurrounder, the observed and resampled 

@@ -7,11 +7,26 @@
 #'
 #' @param expr A matrix (genes by samples) of expression values.
 #' @param classLabels A factor with levels corresponding to class labels.
-#' @param numResamples defaults to 1000. The number of resamples when calculating resampled differential expression. 
+#' @param numResamples the number of times the samples should be resampled.
+#'   Note that this method only uses unique resamplings, so if this is \code{NULL} or
+#'   if the specified number of resamplings is equal to or more than the total unique
+#'   combinations, this method will calculate statistics for all unique resamplings.
+#' @param allPerms boolean for whether all permutations should be
+#'   generated
+#' @param numCores the number of cores to use for parallel computation of the
+#'   resampled stats
+#' @return a list containing two items:
+#'   \itemize{
+#'     \item{observed}{this is vector of the observed statistics}
+#'     \item{resampled}{this is a matrix of numResamples rows and
+#'        number-of-features columns, containing the resampled statistics}
+#'   }
 #' @importFrom limma treat lmFit
+#' @importFrom parallel mclapply
 #' @export
 # Calc gene level statistics & a null set of gene level stats (shuffle phenotype labels)
-calcGeneTStats <- function(expr, classLabels, numResamples = 1000){
+calcGeneTStats <- function(expr, classLabels, numResamples = NULL,
+                           allPerms = TRUE, numCores = 1L){
   # Calc gene level statistics
   # This code is being written using CurOvGradeKEGGnets[[2]]
   # 
@@ -32,17 +47,17 @@ calcGeneTStats <- function(expr, classLabels, numResamples = 1000){
   fit <- limma::treat(limma::lmFit(expr, desMat))
   observedStats <- fit$t[, 2]
 
+  permMat <- returnResampleMat(classLabels, numResamples, allPerms = allPerms)
 
-  permStats <- sapply(1:numResamples, function(resampleLoopIndex) {
-    # Shuffle the phenotype labels
-    permLabels <- sample(classLabels, replace = FALSE)
-
+  permStats <- parallel::mclapply(1:nrow(permMat), function(i) {
+    permLabels <- permMat[i, ]
     #Refit and recalculcate gene level statistics using permLabels
     permDesMat <- model.matrix(~factor(permLabels))
     permFit <- limma::treat(limma::lmFit(expr, permDesMat))
-    #print(head(permFit$t[, 2]))
     return(permFit$t[, 2])
-  })
+  }, mc.cores = numCores)
+  names(permStats) <- paste0("resample_", 1:nrow(permMat))
+  permStats <- as.matrix(as.data.frame(permStats))
 
   # Transpose permStats so the rows are resamplings
   permStats <- t(permStats)
