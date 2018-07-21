@@ -1,3 +1,57 @@
+#' Get sleuth Stats
+#'
+#' This internal function retrieves
+#' the specified test statistics from
+#' the sleuth object.
+#'
+#' @param obj the sleuth object. It must have 'whichModel' already fit
+#'   using \code{sleuth_fit}, as well as the null model if the testType is
+#'   'lrt'.
+#' @param testType either "lrt" or "wt" to indicate which test, Likelihood Ratio Test or
+#'   Wald Test, to use to calculate statistics
+#' @param whichModel if "lrt" is the test type, this the alternative model; if "wt" is
+#'   the test type, this is the model to use.
+#' @param whichTest if "lrt", this is the test in the format of "[null model]:[alternative model]";
+#'   if "wt", this is the same as whichBeta, the actual column in the design matrix to test
+#'
+#' @return a vector with the statistics from the specified test.
+#' @importFrom sleuth sleuth_lrt sleuth_wt
+get_sleuth_stats <- function(obj, testType, whichModel, whichTest) {
+  # If the main model has not been fit yet, stop
+  if (is.null(obj$fits[[whichModel]])) {
+    stop(paste0("This sleuth object has not been fitted with the specified model, '", whichModel,
+                "'. Please run 'sleuth_fit' with this model."))
+  }
+
+  if(testType == "lrt") {
+    models <- strsplit(whichTest, ":", fixed = TRUE)[[1]]
+    null_model <- models[1]
+    # If the null model has not been fit yet, stop
+    if (is.null(obj$fits[[null_model]])) {
+      stop(paste0("This sleuth object has not been fitted with the null model, '", null_model,
+                  "'. Please run 'sleuth_fit' with this model."))
+    }
+    if (whichModel != models[2]) {
+      stop("'whichModel' and the alternative model in 'whichTest' do not match")
+    }
+    if (is.null(obj$tests$lrt[[whichTest]])) {
+      message(paste0("Specified likelihood ratio test '",
+                     whichTest, "' is missing. Generating it now..."))
+      obj <- sleuth::sleuth_lrt(obj, null_model, whichModel)
+    }
+    observedStats <- obj$tests$lrt[[whichTest]]$test_stat
+  } else {
+    # if the testing has not been done yet, do it for them
+    if (is.null(obj$tests$wt[[whichModel]][[whichTest]])) {
+      message(paste0("Specified Wald test '",
+                     whichTest, "' is missing. Generating it now..."))
+      obj <- sleuth::sleuth_wt(obj, whichTest, whichModel)
+    }
+    observedStats <- obj$tests$wt[[whichModel]][[whichTest]]$wald_stat
+  }
+  observedStats
+}
+
 #' Check Resample Size
 #'
 #' This internal function checks to make sure

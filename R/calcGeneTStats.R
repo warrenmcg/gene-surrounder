@@ -94,44 +94,11 @@ calcGeneSleuthStats <- function(obj, whichBeta, whichModel = "full",
                                 numResamples = NULL, allPerms = TRUE,
                                 numCores = 1L, ...) {
   stopifnot(is(obj, "sleuth"))
-  # If the main model has not been fit yet, stop
-  if (is.null(obj$fits[[whichModel]])) {
-    stop(paste0("This sleuth object has not been fitted with the specified model, '", whichModel,
-                "'. Please run 'sleuth_fit' with this model."))
-  }
-
-  if(testType == "lrt") {
-    models <- strsplit(whichTest, ":", fixed = TRUE)[[1]]
-    null_model <- models[1]
-    # If the null model has not been fit yet, stop
-    if (is.null(obj$fits[[null_model]])) {
-      stop(paste0("This sleuth object has not been fitted with the null model, '", null_model,
-                  "'. Please run 'sleuth_fit' with this model."))
-    }
-    if (whichModel != models[2]) {
-      stop("'whichModel' and the alternative model in 'whichTest' do not match")
-    }
-    if (is.null(obj$tests$lrt[[whichTest]])) {
-      message(paste0("Specified likelihood ratio test '",
-                     whichTest, "' is missing. Generating it now..."))
-      obj <- sleuth::sleuth_lrt(obj, null_model, whichModel)
-    }
-    observedStats <- obj$tests$lrt[[whichTest]]$test_stat
-  } else {
-    if (whichTest != whichBeta) {
-      stop("for 'testType' 'wt', 'whichTest' and 'whichBeta' must match")
-    }
-    # if the testing has not been done yet, do it for them
-    if (is.null(obj$tests$wt[[whichModel]][[whichTest]])) {
-      message(paste0("Specified Wald test '",
-                     whichTest, "' is missing. Generating it now..."))
-      obj <- sleuth::sleuth_wt(obj, whichBeta, whichModel)
-    }
-    observedStats <- obj$tests$wt[[whichModel]][[whichTest]]$wald_stat
-  }
 
   if (missing(whichBeta)) {
     stop("'whichBeta' is missing. It must be specified to know which labels to permute")
+  } else if (testType == "wt" && whichTest != whichBeta) {
+    stop("for 'testType' 'wt', 'whichTest' and 'whichBeta' must match")
   }
 
   if ((!is(numCores, "integer") && !is(numCores, "numeric")) || numCores <= 0) {
@@ -139,6 +106,8 @@ calcGeneSleuthStats <- function(obj, whichBeta, whichModel = "full",
   } else {
     numCores <- as.integer(numCores)
   }
+
+  observedStats <- get_sleuth_stats(obj, whichTest, whichModel)
 
   design <- obj$fits[[whichModel]]$design_matrix
   classLabels <- design[, whichBeta]
