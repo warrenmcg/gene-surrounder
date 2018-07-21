@@ -1,3 +1,33 @@
+#' Check number of cores
+#'
+#' This internal function checks if the number of cores
+#' specified is reasonable.
+#'
+#' @param numCores the number of cores
+#'
+#' @return the corrected number of cores
+check_cores <- function(numCores) {
+  if (is.null(numCores) || is.na(suppressWarnings(as.integer(numCores))) ||
+      numCores < 1 || numCores > parallel::detectCores()) {
+    warning(paste0("'numCores' is an invalid value. It must be a number between ",
+                "1 and the number of cores on your machine. 'numCores is being ",
+                "set to 1 so your analysis can run."))
+    numCores <- 1
+  } else if (numCores > 1 && Sys.getenv("RSTUDIO") == "1") {
+    warning(paste0("It appears that you are running Gene-Surrounder from within ",
+                   "Rstudio.\nBecause of concerns with forking processes from a ",
+                   "GUI, 'num_cores' is being set to 1.\nIf you wish to take ",
+                   "advantage of multiple cores, please consider running ",
+                   "Gene-Surrounder from the command line."))
+    numCores <- 1
+  } else {
+    numCores <- as.integer(numCores)
+  }
+
+  numCores
+}
+
+
 #' Get sleuth Stats
 #'
 #' This internal function retrieves

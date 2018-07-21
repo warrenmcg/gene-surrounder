@@ -29,7 +29,7 @@
 #' @importFrom data.table as.data.table
 #' @importFrom parallel mclapply detectCores
 #' @export
-transToGenePvals <- function(pvals, mean_obs, t2g, weight_func = identity, numCores = 1) {
+transToGenePvals <- function(pvals, mean_obs, t2g, weight_func = identity, numCores = 1L) {
   if (is(pvals, "numeric")) {
     target_ids <- names(pvals)
   } else if (is(pvals, "matrix") && is(pvals[,1], "numeric")) {
@@ -38,9 +38,7 @@ transToGenePvals <- function(pvals, mean_obs, t2g, weight_func = identity, numCo
     stop("pvals is not a numeric vector or a matrix")
   }
 
-  stopifnot(is(numCores, "integer") || is(numCores, "numeric"))
-  stopifnot(numCores >= 1 && numCores <= parallel::detectCores())
-  numCores <- as.integer(numCores)
+  numCores <- check_cores(numCores)
 
   if (!is(t2g, "data.frame")) {
     stop("'t2g' must be a data.frame")
@@ -147,6 +145,7 @@ transToGenePvals <- function(pvals, mean_obs, t2g, weight_func = identity, numCo
 transToGeneCors <- function(data, t2g, numCores = 1L) {
   # step 1: create hash of gene IDs to transcript IDs
   stopifnot(is(data, "matrix") && is(data[,1], "numeric"))
+  numCores <- check_cores(numCores)
 
   if (ncol(data) > nrow(data)) {
     stop(paste0("There are more columns than rows. Are you ",

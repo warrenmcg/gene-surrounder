@@ -101,11 +101,7 @@ calcGeneSleuthStats <- function(obj, whichBeta, whichModel = "full",
     stop("for 'testType' 'wt', 'whichTest' and 'whichBeta' must match")
   }
 
-  if ((!is(numCores, "integer") && !is(numCores, "numeric")) || numCores <= 0) {
-    stop("'numCores' is an invalid value")
-  } else {
-    numCores <- as.integer(numCores)
-  }
+  numCores <- check_cores(numCores)
 
   observedStats <- get_sleuth_stats(obj, whichTest, whichModel)
 

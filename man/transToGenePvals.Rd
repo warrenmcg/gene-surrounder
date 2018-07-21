@@ -4,7 +4,8 @@
 \alias{transToGenePvals}
 \title{Aggregate transcript-level p-values to gene-level}
 \usage{
-transToGenePvals(pvals, mean_obs, t2g, weight_func = identity, numCores = 1)
+transToGenePvals(pvals, mean_obs, t2g, weight_func = identity,
+  numCores = 1L)
 }
 \arguments{
 \item{pvals}{vector or matrix of transcript-level p-values.
