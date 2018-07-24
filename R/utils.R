@@ -28,11 +28,12 @@ check_resample_size <- function(classLabels, numResamples, allPerms) {
   numResamples <- as.integer(numResamples)
 
   ## determine the maximum number of permutations
-  ## the minus 1 is to remove the original arrangement
+  ## the minus 2 is to remove the original arrangement
+  ## as well as its direct inverse
   classLabels <- as.factor(classLabels)
   n_ctrl <- sum(classLabels == levels(classLabels)[1])
   n_samples <- length(classLabels)
-  max_perms <- choose(n_samples, n_ctrl) - 1
+  max_perms <- choose(n_samples, n_ctrl) - 2
 
   if (is.null(numResamples)) {
     message("'numResamples' was not specified. Generating all unique combinations.")
@@ -125,7 +126,9 @@ returnResampleMat <- function(classLabels, numResamples = NULL, allPerms = TRUE)
       newLabels[sample_names]
     })
     # Transpose and then remove the first row, which is the original order
-    permMat <- t(permMat)[-1,]
+    # remove also the last row, which is the direct opposite of the original order
+    permMat <- t(permMat)[-1, ]
+    permMat <- permMat[-nrow(permMat), ]
     # Rearrange the order of the columns to match the original sample order
     colnames(permMat) <- sample_names
     permMat <- permMat[, orig_names]
